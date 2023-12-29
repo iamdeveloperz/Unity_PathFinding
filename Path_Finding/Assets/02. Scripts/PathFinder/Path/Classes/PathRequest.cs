@@ -1,6 +1,5 @@
+
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PathRequest
@@ -9,7 +8,8 @@ public class PathRequest
 
     public Vector3 PathStart;
     public Vector3 PathEnd;
-    public Action<Vector3[], bool> Callback;
+    
+    public readonly Action<Vector3[], bool> Callback;
 
     #endregion
 

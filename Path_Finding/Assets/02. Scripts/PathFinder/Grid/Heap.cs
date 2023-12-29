@@ -1,12 +1,11 @@
 
-using UnityEngine;
+using System.Collections.Generic;
 
 public class Heap<T> where T : IHeapItem<T>
 {
     #region Member Variables
 
-    private T[] items;
-    private int currentItemCount;
+    private readonly List<T> _Items = new List<T>();
 
     #endregion
 
@@ -14,105 +13,144 @@ public class Heap<T> where T : IHeapItem<T>
 
     #region Properties
 
-    public int Count => currentItemCount;
+    public int Count => _Items.Count;
 
     #endregion
 
+    
 
+    // Constructor
     public Heap(int maxHeapSize)
     {
-        items = new T[maxHeapSize];
+        // 초기 크기를 설정하여 List의 재할당을 최소화
+        _Items.Capacity = maxHeapSize;
     }
+    
+    
+
+    #region Heap => Add, Remove
 
     public void Add(T item)
     {
-        item.HeapIndex = currentItemCount;
-
-        items[currentItemCount] = item;
-        
+        item.HeapIndex = Count;
+        _Items.Add(item);
         SortUp(item);
-
-        ++currentItemCount;
     }
 
     public T RemoveFirst()
     {
-        var firstItem = items[0];
+        if (Count == 0)
+        {
+            throw new System.InvalidOperationException("Heap is empty.");
+        }
         
-        --currentItemCount;
+        var firstItem = _Items[0];
+        var lastItem = _Items[Count - 1];
 
-        items[0] = items[currentItemCount];
-        items[0].HeapIndex = 0;
+        // 마지막 요소를 첫 번째 위치로 이동
+        _Items[0] = lastItem;
+        lastItem.HeapIndex = 0;
 
-        SortDown(items[0]);
+        // 리스트에서 마지막 요소 제거
+        _Items.RemoveAt(Count - 1);
 
+        // 리스트가 비어있지 않은 경우에만 SortDown 호출
+        if (Count > 0)
+        {
+            SortDown(_Items[0]);
+        }
+        
         return firstItem;
     }
+
+    #endregion
+
+
+
+    #region Update Item
 
     public void UpdateItem(T item)
     {
         SortUp(item);
     }
 
-    public bool Contains(T item)
-    {
-        return Equals(items[item.HeapIndex], item);
-    }
+    #endregion
+    
 
+    
+    #region Sorting Heap
+    
     private void SortUp(T item)
     {
-        var parentIndex = (item.HeapIndex - 1) / 2;
-
-        while (true)
+        var parentIndex = ParentIndex(item.HeapIndex);
+        while (item.HeapIndex > 0)
         {
-            var parentItem = items[parentIndex];
-
+            var parentItem = _Items[parentIndex];
             if (item.CompareTo(parentItem) > 0)
             {
                 Swap(item, parentItem);
             }
-            else break;
+            else
+            {
+                break;
+            }
 
-            parentIndex = (item.HeapIndex - 1) / 2;
+            parentIndex = ParentIndex(item.HeapIndex);
         }
     }
 
     private void SortDown(T item)
     {
-        while(true)
+        while (true)
         {
-            var childIndexLeft = item.HeapIndex * 2 + 1;
-            var childIndexRight = item.HeapIndex * 2 + 2;
-            var swapIndex = 0;
+            var childIndexLeft = ChildIndexLeft(item.HeapIndex);
+            var childIndexRight = ChildIndexRight(item.HeapIndex);
+            var swapIndex = childIndexLeft;
 
-            if (childIndexLeft < currentItemCount)
+            if (childIndexLeft < Count)
             {
-                swapIndex = childIndexLeft;
-
-                if (childIndexRight < currentItemCount)
+                if (childIndexRight < Count && _Items[childIndexLeft].CompareTo(_Items[childIndexRight]) < 0)
                 {
-                    if (items[childIndexLeft].CompareTo(items[childIndexRight]) < 0)
-                    {
-                        swapIndex = childIndexRight;
-                    }
+                    swapIndex = childIndexRight;
                 }
 
-                if (item.CompareTo(items[swapIndex]) < 0)
+                if (item.CompareTo(_Items[swapIndex]) < 0)
                 {
-                    Swap(item, items[swapIndex]);
+                    Swap(item, _Items[swapIndex]);
                 }
-                else return;
+                else break;
             }
-            else return;
+            else break;
         }
     }
 
+    #endregion
+
+
+
+    #region Sub Methods
+
     private void Swap(T itemA, T itemB)
     {
-        items[itemA.HeapIndex] = itemB;
-        items[itemB.HeapIndex] = itemA;
-
-        // 구조 분해로 사용 temp 없이 사용
+        _Items[itemA.HeapIndex] = itemB;
+        _Items[itemB.HeapIndex] = itemA;
+        
         (itemA.HeapIndex, itemB.HeapIndex) = (itemB.HeapIndex, itemA.HeapIndex);
     }
+    
+    public bool Contains(T item)
+    {
+        if (item.HeapIndex < 0 || item.HeapIndex >= _Items.Count) return false;
+
+        return Equals(_Items[item.HeapIndex], item);
+    }
+    
+    private static int ParentIndex(int childIndex) => (childIndex - 1) / 2;
+
+    private static int ChildIndexLeft(int parentIndex) => 2 * parentIndex + 1;
+
+    private static int ChildIndexRight(int parentIndex) => 2 * parentIndex + 2;
+
+    #endregion
+    
 }

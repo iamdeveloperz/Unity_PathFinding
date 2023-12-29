@@ -4,20 +4,35 @@ using UnityEngine;
 
 public class Grid : MonoBehaviour
 {
+    #region Member Variables
+
+    /* Editor Setup */
+    public Vector2 _GridWorldSize;
+    public LayerMask UnwalkableMask;
+    public Transform Player;
+    public float NodeRadius;
     public bool IsDisplayGridGizmos;
     
-    [SerializeField] private Vector2 _GridWorldSize;
-
-    public LayerMask UnwalkableMask;
-    public float NodeRadius;
-    public Transform Player;
-    public List<Node> Path;
-
+    /* Fields */
     private Node[,] _grid;
 
     private float _nodeDiameter;
     private int _gridSizeX;
     private int _gridSizeY;
+
+    #endregion
+
+
+    
+    #region Getter
+
+    public int MaxSize => _gridSizeX * _gridSizeY;
+
+    #endregion
+    
+
+
+    #region Behavior
 
     private void Awake()
     {
@@ -28,39 +43,33 @@ public class Grid : MonoBehaviour
         CreateGrid();
     }
 
-    public int MaxSize => _gridSizeX * _gridSizeY;
+    #endregion
 
-    private void OnDrawGizmos()
-    {
-        Gizmos.DrawWireCube(transform.position, new Vector3(_GridWorldSize.x, 1, _GridWorldSize.y));
 
-        if (_grid == null || !IsDisplayGridGizmos) return;
-        
-        foreach (var node in _grid)
-        {
-            Gizmos.color = (node.Walkable) ? Color.white : Color.red;
-            Gizmos.DrawCube(node.WorldPosition, Vector3.one * (_nodeDiameter - 0.1f));
-        }
-    }
+
+    #region Grid
 
     private void CreateGrid()
     {
         _grid = new Node[_gridSizeX, _gridSizeY];
-
-        var worldBottomLeft = transform.position - (Vector3.right * _GridWorldSize.x / 2f) -
-                              (Vector3.forward * _GridWorldSize.y / 2f);
+        var worldBottomLeft = transform.position - Vector3.right * _GridWorldSize.x / 2 - Vector3.forward * _GridWorldSize.y / 2;
 
         for (var x = 0; x < _gridSizeX; ++x)
         {
             for (var y = 0; y < _gridSizeY; ++y)
             {
-                var worldPoint = worldBottomLeft + (Vector3.right * (x * _nodeDiameter + NodeRadius)) +
-                                 (Vector3.forward * (y * _nodeDiameter + NodeRadius));
-                var walkable = !(Physics.CheckSphere(worldPoint, NodeRadius, UnwalkableMask));
+                var worldPoint = worldBottomLeft + Vector3.right * (x * _nodeDiameter + NodeRadius) + Vector3.forward * (y * _nodeDiameter + NodeRadius);
+                var walkable = !Physics.CheckSphere(worldPoint, NodeRadius, UnwalkableMask);
                 _grid[x, y] = new Node(walkable, worldPoint, x, y);
             }
         }
     }
+
+    #endregion
+
+
+
+    #region Get Grid Nodes
 
     public List<Node> GetNeighbours(Node node)
     {
@@ -98,4 +107,25 @@ public class Grid : MonoBehaviour
 
         return _grid[x, y];
     }
+
+    #endregion
+    
+    
+    
+    #region Sub Methods
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.DrawWireCube(transform.position, new Vector3(_GridWorldSize.x, 1, _GridWorldSize.y));
+
+        if (_grid == null || !IsDisplayGridGizmos) return;
+        
+        foreach (var node in _grid)
+        {
+            Gizmos.color = (node.Walkable) ? Color.white : Color.red;
+            Gizmos.DrawCube(node.WorldPosition, Vector3.one * (_nodeDiameter - 0.1f));
+        }
+    }
+
+    #endregion
 }

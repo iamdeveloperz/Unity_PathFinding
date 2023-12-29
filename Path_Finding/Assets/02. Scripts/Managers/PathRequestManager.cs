@@ -2,19 +2,20 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Threading;
 
+// Singleton Behavior는 임시용 DontBeDestroyed가 아니어야함
 public class PathRequestManager : SingletonBehavior<PathRequestManager>
 {
     #region Member Variables
 
+    //private static PathRequestManager _instance;
+
     // Path Find Requests
-    private readonly Queue<PathRequest> _pathRequestQueue = new Queue<PathRequest>();
-    private PathRequest _currentPathRequest;
-    
+    private readonly Queue<PathRequest> _pathRequestQueue = new();
+
     // Path Finder
     private PathFinder _pathFinder;
-
-    private bool _isProcessingPath;
 
     #endregion
 
@@ -24,37 +25,66 @@ public class PathRequestManager : SingletonBehavior<PathRequestManager>
 
     private void Awake()
     {
+        //_instance = this;
         _pathFinder = FindFirstObjectByType<PathFinder>();
+
+        StartPathFindingThread();
+    }
+
+    // private void Update()
+    // {
+    //     if (_pathResultQueue.Count <= 0) return;
+    //     
+    //     var itemsInQueue = _pathResultQueue.Count;
+    //
+    //     lock (_pathResultQueue)
+    //     {
+    //         for (var i = 0; i < itemsInQueue; ++i)
+    //         {
+    //             var result = _pathResultQueue.Dequeue();
+    //             result.Callback(result.Path, result.IsSuccess);
+    //         }
+    //     }
+    // }
+
+    #endregion
+
+
+
+    #region Thread
+
+    private void StartPathFindingThread()
+    {
+        var pathFindingThread = new Thread(new ThreadStart(ProcessPathRequests));
+        pathFindingThread.Start();
+    }
+    
+    private void ProcessPathRequests()
+    {
+        while (true)
+        {
+            if (_pathRequestQueue.Count <= 0) continue;
+            
+            lock (_pathRequestQueue)
+            {
+                if (_pathRequestQueue.Count <= 0) continue;
+                
+                var request = _pathRequestQueue.Dequeue();
+                var result = _pathFinder.FindPath(request);
+                UnityMainThreadDispatcher.Instance.Enqueue(() => request.Callback(result.Path, result.IsSuccess));
+            }
+        }
     }
 
     #endregion
     
 
     
-    public static void RequestPath(Vector3 pathStart, Vector3 pathEnd, Action<Vector3[], bool> callback)
+    public static void RequestPath(PathRequest request)
     {
-        var newRequest = new PathRequest(pathStart, pathEnd, callback);
-
-        Instance._pathRequestQueue.Enqueue(newRequest);
-        Instance.TryProcessNext();
-    }
-
-    private void TryProcessNext()
-    {
-        if (_isProcessingPath || _pathRequestQueue.Count <= 0) return;
-        
-        _currentPathRequest = _pathRequestQueue.Dequeue();
-        _isProcessingPath = !_isProcessingPath;
-
-        _pathFinder.StartFindPath(_currentPathRequest.PathStart, _currentPathRequest.PathEnd);
-    }
-
-    public void FinishedProcessingPath(Vector3[] path, bool success)
-    {
-        _currentPathRequest.Callback(path, success);
-
-        _isProcessingPath = false;
-        
-        TryProcessNext();
+        lock (Instance._pathRequestQueue)
+        {
+            Instance._pathRequestQueue.Enqueue(request);
+        }
     }
 }

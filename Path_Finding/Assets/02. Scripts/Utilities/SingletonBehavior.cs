@@ -62,7 +62,7 @@ public class SingletonBehavior<T> : SingletonBase where T : MonoBehaviour
 
     #region Destroy Singleton
 
-    protected void OnDestroy()
+    protected virtual void OnDestroy()
     {
         if (_instance == this)
         {
